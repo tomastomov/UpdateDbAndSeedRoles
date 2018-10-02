@@ -1,0 +1,56 @@
+ public static void UpdateDatabase(this IApplicationBuilder app)
+        {
+            using (var serviceScope = app.ApplicationServices.CreateScope())
+            {
+                var context = serviceScope.ServiceProvider.GetService<LearningSystemDbContext>();
+                context.Database.Migrate();
+
+                var roleManager = serviceScope.ServiceProvider.GetService<RoleManager<IdentityRole>>();
+                var userManager = serviceScope.ServiceProvider.GetService<UserManager<User>>();
+
+                Task.Run(async () =>
+                {
+                    var adminName = GlobalConstants.Administrator;
+                    var studentRoleName = GlobalConstants.Student;
+                    var trainerRoleName = GlobalConstants.Trainer;
+                    var blogAuthorRoleName = GlobalConstants.BlogAuthor;
+
+                    await CreateRole(roleManager, adminName);
+
+                    await CreateRole(roleManager, studentRoleName);
+
+                    await CreateRole(roleManager, trainerRoleName);
+
+                    await CreateRole(roleManager, blogAuthorRoleName);
+
+                    var adminUser = await userManager.FindByNameAsync(adminName);
+
+                    if (adminUser == null)
+                    {
+                        adminUser = new User
+                        {
+                            UserName = "yourName",
+                            Email = "your@Email.com"
+                        };
+
+                        await userManager.CreateAsync(adminUser, "yourPassword");
+                        await userManager.AddToRoleAsync(adminUser, adminName);
+                    }
+                    
+                })
+                .GetAwaiter()
+                .GetResult();
+            }
+            
+        }
+        private async static Task CreateRole(RoleManager<IdentityRole> roleManager ,string roleName)
+        {
+            var roleNameExists = await roleManager.RoleExistsAsync(roleName);
+
+            if (!roleNameExists)
+            {
+                await roleManager.CreateAsync(new IdentityRole { Name = roleName });
+            }
+
+            return;
+        }
